@@ -13,17 +13,26 @@ let usuarios = [
     {
         id:1,
         nome: 'Dorivaldo',
-        email: 'dorivaldo@gmail.com'
+        email: 'dorivaldo@gmail.com',
+        senha: bcrypt.hashSync('dorivaldo1234', 8)
     },
     {
         id:2,
         nome: 'Gonçalo',
-        email: 'goncalo@gmail.com'
+        email: 'goncalo@gmail.com',
+        senha: bcrypt.hashSync('goncalo1234', 8)
     },
     {
         id:3,
         nome: 'Ferreira',
-        email: 'ferreira@gmail.com'
+        email: 'ferreira@gmail.com',
+        senha: bcrypt.hashSync('ferreira1234', 8)
+    },
+    {
+        id:4,
+        nome: 'admin',
+        email: 'geral.gmail.com',
+        senha: bcrypt.hashSync('admin1234', 8)
     }
 ];
 
@@ -118,6 +127,75 @@ app.delete('/usuarios/:id', (req, res)=>
                 }
     }
 );
+
+//Rota de login gerando o token
+const jwt = require('jsonwebtoken');
+app.post('/login', (req, res)=>
+    {
+        const { email, senha } = req.body;
+        const user = usuarios.find(u => u.nome === u.nome);
+            if(!user)
+                {
+                    return res.status(401).json(
+                        {
+                            message: 'Credenciais inválidas'
+                        }
+                    );
+                }
+        //Verificar senha
+        const senhaV = bcrypt.compareSync(senha, user.senha);
+                if(!senhaV)
+                    {
+                        return res.status(401).json(
+                            {
+                                message: 'Senha inválida'
+                            }
+                        );
+                    }
+        //Gerar token
+        const token = jwt.sign(
+            {
+                id:user.id,
+                nome: user.nome
+            }, 
+            'segredo-super-secreto',
+            {
+                expiresIn: '1h'
+            }
+           
+        );
+        res.json(
+            {
+                tokwen
+            }
+            );
+    }
+);
+
+//Middleware para minhas rotas protegidas
+function authToken(req, res, next)
+    {
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.split(' ')[1];
+
+        if(!token) return res.status(401).json({message: 'Token não fornecido!'});
+
+        jwt.verify(token, 'segredo-super-secreto', (err, user)=>
+            {
+                if(err) return res.status(403).json({message: 'Token inválido!'});
+                req.user = user;
+                next();
+            }
+        );
+    }
+
+//Rotas protegidas de admin
+app.get('/dashboard', authToken, (req, res)=>
+    {
+        res.json({
+            message:'Bem-Vindo!', user: req.user
+        });
+    });
 
 //Iniciar o servidor
 app.listen(port, ()=>
